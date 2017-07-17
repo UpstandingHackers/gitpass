@@ -1,0 +1,43 @@
+buildscript {
+    ext.kotlin_version = '1.1.3-2'
+
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+apply plugin: 'kotlin'
+apply plugin: 'idea'
+
+group 'com.upstandinghackers.syncpass'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+idea {
+     module {
+        downloadJavadoc = true
+        downloadSources = true
+    }
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
+    compile 'org.eclipse.jgit:org.eclipse.jgit:4.8.0.201706111038-r'
+    compile 'org.eclipse.jgit:org.eclipse.jgit.http.server:4.8.0.201706111038-r'
+    compile 'org.slf4j:slf4j-api:1.8.0-alpha2'
+    compile 'io.atlassian.fugue:fugue:4.5.0'
+    compile 'org.abstractj.kalium:kalium:0.6.0'
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
