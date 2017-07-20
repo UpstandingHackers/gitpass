@@ -16,10 +16,11 @@ mechanism.
 
 ## objects
 
-Each object is identified by a unique key. The contents are 
-distributed across a set of change files within the object directory.
-Each object, regardless of type, consists of a set of key/value pairs; 
-each key may be associated with multiple values.
+Each object consists of one or more key-value pairs, identified by a unique 
+cryptographic key (which is not one of those KV pairs). The contents of an 
+object are derived by applying all change files within the objects directory 
+that apply to the object in chronological order (change files form a linked 
+timestamp chain). Each key may be associated with multiple values.
  
 Types of objects include:
 
