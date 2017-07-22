@@ -49,7 +49,7 @@ class Bdecode(val data: ByteArray) {
     }
 
     fun bytes(): ByteArray {
-        if (nextByte().toChar() !in '0'..'9') {
+        if (peekByte().toChar() !in '0'..'9') {
             reportError("Expected bytestring")
         }
         var lengthLong = internalNextInt(':', false)
@@ -134,7 +134,7 @@ class Bdecode(val data: ByteArray) {
     }
 
     private fun consumeToken(token: TokenType) {
-        if (token.singleByte) {
+        if (!token.singleByte) {
             throw IllegalArgumentException("Can only consume single byte tokens")
         }
         if (peekTokenType() != token) {

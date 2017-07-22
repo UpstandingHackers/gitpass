@@ -2,17 +2,20 @@ package com.upstandinghackers.syncpass.util.bencode
 
 import com.upstandinghackers.syncpass.util.MalformedMessageException
 import org.jetbrains.spek.api.Spek
-import org.jetbrains.spek.api.dsl.given
-import org.jetbrains.spek.api.dsl.it
-import org.jetbrains.spek.api.dsl.on
+import org.jetbrains.spek.api.dsl.*
+import java.rmi.activation.ActivationDesc
 import kotlin.test.*
 
 object BdecodeSpec: Spek({
-    given("The string \"i10e\"") {
-        val coder = Bdecode("i10e".toByteArray())
 
-        afterEachTest { coder.reset() }
-
+    fun givenString(str: String, body: SpecBody.(Bdecode) -> Unit) {
+        given("The string \"$str\"") {
+            val coder = Bdecode(str.toByteArray())
+            afterEachTest { coder.reset() }
+            body(coder)
+        }
+    }
+    givenString("i10e") { coder ->
         on("reading an integer") {
             val i = coder.integer()
             it("should return 10") {
@@ -31,17 +34,23 @@ object BdecodeSpec: Spek({
         }
 
         on("reading a string") {
-            val succeeded = try {
-                val s = coder.bytes()
-                true
-            } catch (_: MalformedMessageException) {
-                false
-            }
-
             it("should fail") {
-                assertFalse(succeeded)
+                assertFalse(try {
+                    val s = coder.bytes()
+                    true
+                } catch (_: MalformedMessageException) {
+                    false
+                })
             }
         }
     }
 
+    givenString("d1:c4:test1:nli1ei2eee") { coder ->
+        on("Reading an object") {
+            val obj = coder.obj({ba -> String(ba)}) as HashMap<String, Any>
+            xit("should return {c':'teste', 'n':[1,2]}") {
+
+            }
+        }
+    }
 })
