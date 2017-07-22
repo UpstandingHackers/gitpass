@@ -1,76 +1,47 @@
-package com.upstandinghackers.syncpass.util
+package com.upstandinghackers.syncpass.util.bencode
 
+import com.upstandinghackers.syncpass.util.InvalidStateException
 import java.io.ByteArrayOutputStream
 import java.nio.charset.Charset
-import java.util.*
 
 class Bencode(val outputStream: ByteArrayOutputStream, val charset: Charset = Charsets.UTF_8) {
+    private val stateMachine = StateMachine()
+
     companion object {
         fun encode(charset: Charset = Charsets.UTF_8, closure: Bencode.() -> Unit): ByteArray {
             val os = ByteArrayOutputStream()
             val encoder = Bencode(os, charset)
-            closure.invoke(encoder)
+            closure(encoder)
+            if (!encoder.isComplete) {
+                throw InvalidStateException("Encoder has not finished encoding an object")
+            }
             return os.toByteArray()
         }
 
+        fun encodeMulti(charset: Charset = Charsets.UTF_8, closure: Bencode.() -> Unit): ByteArray {
+            return encode {
+                stateMachine.replace(State.ANY_TOPLEVEL)
+                closure()
+            }
+        }
+
+        fun dict(closure: Bencode.() -> Unit) = encode { dict(closure) }
+        fun list(closure: Bencode.() -> Unit) = encode { list(closure) }
         fun bytes(data: ByteArray) = encode { bytes(data) }
+        fun string(string: String) = encode { string(string) }
+        fun integer(v: Long) = encode { integer(v) }
     }
 
-    private enum class State(val endOk: Boolean) {
-        NONE(false), // sink state
-        SINGLE(false),
-        ANY(true),
-        PAIR_KEY(true),
-        PAIR_VALUE(false);
-
-        fun next(): State {
-            return when (this) {
-                NONE -> throw InvalidStateException("Single element expected")
-                SINGLE -> NONE
-                ANY -> ANY
-                PAIR_KEY -> PAIR_VALUE
-                PAIR_VALUE -> PAIR_KEY
-            }
-        }
-
-        fun validateType(type: Bdecode.TokenType): Boolean {
-            return if (type == Bdecode.TokenType.END) {
-                endOk
-            } else when (this) {
-                NONE -> false
-                ANY -> true
-                SINGLE -> true
-                PAIR_VALUE -> true
-                PAIR_KEY -> type == Bdecode.TokenType.STRING
-            }
-        }
-    }
-
-    private val depth: Stack<State> = Stack()
-
-    private fun stepStateMachine(type: Bdecode.TokenType) {
-        val curState = depth.peek()
-        if (curState == null || curState == State.NONE) {
-            throw InvalidStateException("No more items expected")
-        }
-        if (!curState.validateType(type)) {
-            throw InvalidStateException("Unexpected $type")
-        } else if (type == Bdecode.TokenType.END) {
-            depth.pop()
-            if (depth.empty()) {
-                throw InvalidStateException("Popped too much; this should be unreachable")
-            }
-        }
-        depth.push(depth.pop().next())
-    }
+    val isComplete
+        get() = stateMachine.isComplete
 
     fun beginDict() {
-        stepStateMachine(Bdecode.TokenType.DICT)
+        stateMachine.step(Bdecode.TokenType.DICT)
         outputStream.write('d'.toInt())
     }
 
     fun beginList() {
-        stepStateMachine(Bdecode.TokenType.LIST)
+        stateMachine.step(Bdecode.TokenType.LIST)
         outputStream.write('l'.toInt())
     }
 
@@ -87,12 +58,12 @@ class Bencode(val outputStream: ByteArrayOutputStream, val charset: Charset = Ch
     }
 
     fun end() {
-        stepStateMachine(Bdecode.TokenType.END)
+        stateMachine.step(Bdecode.TokenType.END)
         outputStream.write('e'.toInt())
     }
 
     fun bytes(bytes: ByteArray) {
-        stepStateMachine(Bdecode.TokenType.STRING)
+        stateMachine.step(Bdecode.TokenType.STRING)
         outputStream.write(bytes.size.toString(10).toByteArray())
         outputStream.write(':'.toInt())
         outputStream.write(bytes)
@@ -103,8 +74,13 @@ class Bencode(val outputStream: ByteArrayOutputStream, val charset: Charset = Ch
     }
 
     fun integer(i: Long) {
-        stepStateMachine(Bdecode.TokenType.INT)
+        stateMachine.step(Bdecode.TokenType.INT)
         outputStream.write("i${i}e".toByteArray())
+    }
+
+    fun pair(k: String, v: Any) {
+        string(k)
+        obj(v)
     }
 
     fun obj(obj: Any?) {
