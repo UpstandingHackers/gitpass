@@ -23,8 +23,15 @@ internal class StateMachine(initialState: State = State.SINGLE) {
             if (depth.empty()) {
                 throw InvalidStateException("Popped too much; this should be unreachable")
             }
+        } else {
+            depth.push(depth.pop().next())
+            if (type == Bdecode.TokenType.LIST) {
+                depth.push(State.ANY)
+            } else if (type == Bdecode.TokenType.DICT) {
+                push(State.PAIR_KEY)
+            }
         }
-        depth.push(depth.pop().next())
+
     }
 
     fun push(state: State) {

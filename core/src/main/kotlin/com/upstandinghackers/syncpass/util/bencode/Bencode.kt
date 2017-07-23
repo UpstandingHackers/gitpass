@@ -30,6 +30,7 @@ class Bencode(val outputStream: ByteArrayOutputStream, val charset: Charset = Ch
         fun bytes(data: ByteArray) = encode { bytes(data) }
         fun string(string: String) = encode { string(string) }
         fun integer(v: Long) = encode { integer(v) }
+        fun obj(o: Any) = encode { obj(o) }
     }
 
     val isComplete
@@ -43,6 +44,12 @@ class Bencode(val outputStream: ByteArrayOutputStream, val charset: Charset = Ch
     fun beginList() {
         stateMachine.step(Bdecode.TokenType.LIST)
         outputStream.write('l'.toInt())
+    }
+
+    fun list(vararg elements: Any) {
+        list {
+            elements.forEach(this::obj)
+        }
     }
 
     fun list(closure: Bencode.() -> Unit) {
@@ -78,6 +85,11 @@ class Bencode(val outputStream: ByteArrayOutputStream, val charset: Charset = Ch
         outputStream.write("i${i}e".toByteArray())
     }
 
+    fun pair(k: String, closure: Bencode.() -> Unit) {
+        string(k)
+        this.closure()
+    }
+
     fun pair(k: String, v: Any) {
         string(k)
         obj(v)
@@ -101,6 +113,9 @@ class Bencode(val outputStream: ByteArrayOutputStream, val charset: Charset = Ch
             }
             is Long -> integer(obj)
             is Int -> integer(obj.toLong())
+            is Short -> integer(obj.toLong())
+            is Byte -> integer(obj.toLong())
+            is Char -> integer(obj.toLong())
             is String -> string(obj)
             is ByteArray -> bytes(obj)
             else -> throw IllegalArgumentException("Invalid type ${obj.javaClass}")

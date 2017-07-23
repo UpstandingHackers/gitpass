@@ -48,7 +48,7 @@ object BdecodeSpec: Spek({
     givenString("d1:c4:test1:nli1ei2eee") { coder ->
         on("Reading an object") {
             val obj = coder.obj({ba -> String(ba)}) as HashMap<String, Any>
-            xit("should return {c':'teste', 'n':[1,2]}") {
+            xit("should return {c':'test', 'n':[1,2]}") {
 
             }
         }
