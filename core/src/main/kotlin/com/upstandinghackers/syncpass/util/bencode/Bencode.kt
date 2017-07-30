@@ -98,6 +98,7 @@ class Bencode(val outputStream: ByteArrayOutputStream, val charset: Charset = Ch
     fun obj(obj: Any?) {
         when (obj) {
             null -> throw IllegalArgumentException("null is unencodable")
+            is Bencodable -> obj.encode(this)
             is List<*> -> {
                 beginList()
                 obj.forEach(this::obj)
@@ -120,6 +121,12 @@ class Bencode(val outputStream: ByteArrayOutputStream, val charset: Charset = Ch
             is ByteArray -> bytes(obj)
             else -> throw IllegalArgumentException("Invalid type ${obj.javaClass}")
         }
+    }
+
+    fun raw(byteArray: ByteArray) {
+        outputStream.write(byteArray)
+        // If we can write anything, we can write a string
+        stateMachine.step(Bdecode.TokenType.STRING)
     }
 }
 

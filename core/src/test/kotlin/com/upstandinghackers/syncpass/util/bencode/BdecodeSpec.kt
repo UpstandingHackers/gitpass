@@ -3,7 +3,7 @@ package com.upstandinghackers.syncpass.util.bencode
 import com.upstandinghackers.syncpass.util.MalformedMessageException
 import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.*
-import java.rmi.activation.ActivationDesc
+import com.upstandinghackers.syncpass.util.decode
 import kotlin.test.*
 
 object BdecodeSpec: Spek({
@@ -24,7 +24,7 @@ object BdecodeSpec: Spek({
         }
 
         on("reading an object") {
-            val i = coder.obj { key -> key}
+            val i = coder.any { key -> key}
             it("should be a long") {
                 assert(i is Long)
             }
@@ -47,7 +47,7 @@ object BdecodeSpec: Spek({
 
     givenString("d1:c4:test1:nli1ei2eee") { coder ->
         on("Reading an object") {
-            val obj = coder.obj({ba -> String(ba)}) as HashMap<String, Any>
+            val obj = coder.any({ k -> Charsets.UTF_8.decode(k)}) as HashMap<*, *>
             xit("should return {c':'test', 'n':[1,2]}") {
 
             }

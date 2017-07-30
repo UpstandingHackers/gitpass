@@ -42,8 +42,8 @@ dependencies {
     compile 'org.eclipse.jgit:org.eclipse.jgit.http.server:4.8.0.201706111038-r'
     compile 'org.slf4j:slf4j-api:1.8.0-alpha2'
     compile 'io.atlassian.fugue:fugue:4.5.0'
-    compile 'org.abstractj.kalium:kalium:0.6.0'
-    testImplementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+    compile 'bouncycastle:bcprov-jdk16:140'
+    implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     testImplementation ('org.jetbrains.spek:spek-api:1.1.2') {
          exclude group: 'org.jetbrains.kotlin'
     }

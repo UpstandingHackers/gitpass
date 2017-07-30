@@ -1,9 +1,17 @@
 package com.upstandinghackers.syncpass.util.bencode
 
 import com.upstandinghackers.syncpass.util.MalformedMessageException
+import com.upstandinghackers.syncpass.util.decode
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.Charset
+import java.nio.charset.CharsetDecoder
+import java.nio.charset.CodingErrorAction
 
-class Bdecode(val data: ByteArray) {
+class Bdecode(val data: ByteArray, charset: Charset = Charsets.UTF_8) {
     private var pos = 0
+    private val decoder: CharsetDecoder = charset.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
 
     enum class TokenType(val signifier: Char, val singleByte: Boolean) {
         INT('i', false),
@@ -32,12 +40,12 @@ class Bdecode(val data: ByteArray) {
     private fun peekByte(): Byte = data[pos]
     private fun nextByte(): Byte = data[pos++]
     private fun getByteString(len: Int): ByteArray {
-        val ret = data.copyOfRange(pos, pos+len)
+        val ret = data.copyOfRange(pos, pos + len)
         pos += len
         return ret
     }
-    
-    private fun reportError(msg: String): Nothing {
+
+    fun reportError(msg: String): Nothing {
         throw MalformedMessageException("$msg at position $pos")
     }
 
@@ -58,6 +66,22 @@ class Bdecode(val data: ByteArray) {
             else -> reportError("Byte string length too long")
         }
         return getByteString(length)
+    }
+
+    fun decodeString(byteArray: ByteArray): String {
+        try {
+            return decoder.decode(byteArray)
+        } catch (ex: CharacterCodingException) {
+            throw MalformedMessageException("Invalid character", ex)
+        }
+    }
+
+
+    /**
+     * Decode a string in this decoder's charset
+     */
+    fun string(): String {
+        return decodeString(bytes())
     }
 
     private fun internalNextInt(term: Char = 'e', allowNegative: Boolean = true): Long {
@@ -122,6 +146,12 @@ class Bdecode(val data: ByteArray) {
         consumeToken(TokenType.END)
     }
 
+    fun stringDict(closure: Bdecode.(String) -> Unit) {
+        dict { k ->
+            closure(decodeString(k))
+        }
+    }
+
     /**
      * Parse a list from the stream. Closure is called for each object
      */
@@ -143,32 +173,32 @@ class Bdecode(val data: ByteArray) {
         nextByte()
     }
 
-    fun consume(): Unit = any(
+    fun consumeAny(): Unit = dispatch(
             integer = {},
             bytes = {},
             dictStart = {},
-            dict = { _,_ -> consume()},
+            dict = { _, _ -> consumeAny() },
             listStart = {},
-            list = { _ -> consume()},
+            list = { _ -> consumeAny() },
             eof = {}
     )
 
-    fun <K> obj(keyMap: (ByteArray) -> K): Any = any<Any, MutableList<Any>, MutableMap<K, Any>>(
-            integer = {l -> l},
-            bytes = {b->b},
-            dictStart = {HashMap()},
-            dict = {d,k -> d.put(keyMap(k), obj(keyMap)); d},
-            listStart = {ArrayList()},
-            list = {l -> l.add(obj(keyMap)); l}
+    fun any(): Bencodable = dispatch(
+            integer = { l -> BInt(l) },
+            bytes = { b -> BBytes(b) },
+            dictStart = { BMap() },
+            dict = { d, k -> d.put(decodeString(k), any()); d },
+            listStart = { BList() },
+            list = { l -> l.add(any()); l }
     )
 
-    fun <R,L:R,D:R> any(integer: (Long) -> R = { v -> reportError("Unexpected integer $v")},
-                        bytes: (ByteArray) -> R = {b -> reportError("Unexpected bytes")},
-                        dictStart: () -> D = {this.reportError("Unpexpected dict")},
-                        dict: Bdecode.(D, ByteArray) -> D = { d,k -> d },
-                        listStart: () -> L = {this.reportError("Unexpected list")},
-                        list: Bdecode.(L) -> L = { l -> l },
-                        eof: Bdecode.() -> R = { this.reportError("Unexpected EOF")}): R {
+    fun <R, L : R, D : R> dispatch(integer: (Long) -> R = { v -> reportError("Unexpected integer $v") },
+                                   bytes: (ByteArray) -> R = { b -> reportError("Unexpected bytes") },
+                                   dictStart: () -> D = { this.reportError("Unpexpected dict") },
+                                   dict: Bdecode.(D, ByteArray) -> D = { d, k -> d },
+                                   listStart: () -> L = { this.reportError("Unexpected list") },
+                                   list: Bdecode.(L) -> L = { l -> l },
+                                   eof: Bdecode.() -> R = { this.reportError("Unexpected EOF") }): R {
         return if (isAtEof) {
             eof()
         } else when (peekTokenType()) {
@@ -188,8 +218,17 @@ class Bdecode(val data: ByteArray) {
         }
     }
 
+    fun raw(closure: Bdecode.() -> Unit): ByteArray {
+        val p = pos
+        closure()
+        return data.copyOfRange(p, pos)
+    }
+
+    fun raw(): ByteArray = raw { consumeAny() }
+
     internal fun reset() {
         pos = 0
     }
 }
 
+annotation class Deserializer

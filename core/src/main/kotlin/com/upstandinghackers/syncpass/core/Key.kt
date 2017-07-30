@@ -1,16 +1,15 @@
 package com.upstandinghackers.syncpass.core
 
-import org.abstractj.kalium.crypto.SecretBox
+import com.upstandinghackers.syncpass.crypto.SecretBox
+import com.upstandinghackers.syncpass.crypto.SecretBoxAes256Gcm
+import java.security.SecureRandom
 
-class Key {
-    val box: SecretBox
-
-    constructor(keyData: ByteArray) {
-        box = SecretBox(keyData)
+class Key(private val keyData: ByteArray) {
+    companion object {
     }
 
     fun encrypt(data: ByteArray): ByteArray {
-        TODO()
+        return SecretBoxAes256Gcm.encrypt(keyData, data, byteArrayOf())
     }
 
     fun decrypt(data: ByteArray): ByteArray {
